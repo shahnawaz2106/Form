@@ -33,6 +33,7 @@ export default function PaymentForm() {
   const [paymentProgress, setPaymentProgress] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [countdown, setCountdown] = useState(60); // 1 minute countdown
 
   const dropdownRef = useRef(null);
 
@@ -137,16 +138,34 @@ export default function PaymentForm() {
     }
   }, [formData.amount]);
 
-  // Simulate payment processing
+  // Countdown timer for processing state
+  useEffect(() => {
+    let timer;
+    if (formData.paymentStatus === "Processing" && showModal && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handlePaymentCompletion();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [formData.paymentStatus, showModal, countdown]);
+
+  // Simulate payment processing progress
   useEffect(() => {
     if (formData.paymentStatus === "Processing" && showModal) {
       const timer = setInterval(() => {
         setPaymentProgress((prev) => {
           if (prev >= 100) {
             clearInterval(timer);
-            setTimeout(() => {
-              handlePaymentCompletion();
-            }, 1000);
             return 100;
           }
           return prev + (Math.random() * 10 + 5);
@@ -335,6 +354,8 @@ export default function PaymentForm() {
 
     setIsLoading(false);
     setShowModal(true);
+    // Reset countdown when showing modal
+    setCountdown(60);
   };
 
   const handlePaymentCompletion = () => {
@@ -361,6 +382,13 @@ export default function PaymentForm() {
     setPaymentProgress(0);
     setCurrentStep(1);
     setIsDropdownOpen(false);
+    setCountdown(60);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
   const getModalConfig = (status) => {
@@ -389,7 +417,16 @@ export default function PaymentForm() {
         };
       case "Processing":
         return {
-          icon: <Loader2 size={40} className="animate-spin" />,
+          icon: (
+            <div className="relative">
+              {/* <Loader2 size={40} className="animate-spin" /> */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white font-bold text-2xl ">
+                  {formatTime(countdown)}
+                </span>
+              </div>
+            </div>
+          ),
           iconBg: "bg-gradient-to-br from-orange-500 to-amber-500",
           title: "Processing Payment...",
           message:
@@ -846,7 +883,7 @@ export default function PaymentForm() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="rounded-3xl shadow-2xl w-full max-w-md relative overflow-visible animate-fadeIn">
+          <div className="rounded-3xl w-full max-w-md relative overflow-visible animate-fadeIn">
             {/* Close button */}
             <button
               onClick={handleCloseModal}
@@ -868,11 +905,28 @@ export default function PaymentForm() {
               <p className="text-gray-500 text-sm px-4 leading-relaxed">
                 {modalConfig.message}
               </p>
+              {/* Progress bar for processing state */}
+              {/* {formData.paymentStatus === "Processing" && (
+                <div className="mt-4 px-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-orange-500 to-amber-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${paymentProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Processing...</span>
+                    <span>{Math.round(paymentProgress)}%</span>
+                  </div>
+                </div>
+              )} */}
             </div>
 
             {/* RECEIPT COMING OUT */}
-            <div className="w-[90%] mx-auto flex justify-center -mt-9 h-0 overflow-hidden border-12 border-gray-300 rounded-3xl"></div>
-            <div className="w-[82%] mx-auto pb-6 -mt-4 overflow-hidden bg-transparent">
+            <div className="w-[90%] mx-auto flex justify-center -mt-9 h-0 overflow-hidden border-10 border-gray-300 rounded-4xl"></div>
+            <div className="w-[82%] mx-auto pb-6 -mt-4 overflow-hidden bg-transparent relative">
+            <div className="absolute -top-3 left-0 right-0 h-6 bg-white/30 shadow-[0_-4px_20px_0_rgba(255,255,255,0.5)] blur-md z-0 rounded-t-3xl"></div>
+            <div className="absolute -top-2 left-0 right-0 h-4 bg-white/40 shadow-[0_-2px_15px_0_rgba(255,255,255,0.6)] blur-sm z-0 rounded-t-3xl"></div>
               {/* Zigzag at top (where it comes out of card) */}
               <svg
                 className="relative top-5 left-0 right-0 mx-auto"
